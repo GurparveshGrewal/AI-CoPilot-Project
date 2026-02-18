@@ -1,17 +1,17 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 
-namespace Api.Controllers{
+namespace Api.Controllers
+{
     [ApiController]
     [Route("api/[controller]")]
-
-    public class AuthController : ControllerBase 
+    public class AuthController : ControllerBase
     {
         [HttpPost("login")]
-        public IActionResult Login(){
-
+        public IActionResult Login()
+        {
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes("ThisIsMySuperSecretKey123456789012")
             );
@@ -27,7 +27,6 @@ namespace Api.Controllers{
             var jwt = new JwtSecurityTokenHandler().WriteToken(token);
 
             return Ok(new { token = jwt });
-
         }
     }
 }
