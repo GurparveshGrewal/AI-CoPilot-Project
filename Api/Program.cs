@@ -6,8 +6,19 @@ using Microsoft.OpenApi.Models;
 
 var key = "ThisIsMySuperSecretKey123456789012";
 
+//1. this is where i actually create the app, i get the instance or referance of the app built.
 var builder = WebApplication.CreateBuilder(args);
 
+//2. Now here i add a db context in my app services, by giving name.
+// Registering services
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+);
+
+// adding Auth service
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+//3. here i enable the authentication 
 // adding authentication
 builder
     .Services.AddAuthentication(options =>
@@ -73,11 +84,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-// registering DbContext
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
 
 // middlewares
 app.UseAuthentication();
