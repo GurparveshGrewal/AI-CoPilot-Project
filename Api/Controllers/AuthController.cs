@@ -1,7 +1,9 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Api.DTOs;
 using Api.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Api.Controllers
@@ -90,6 +92,70 @@ namespace Api.Controllers
             // NOTE: You should also send the 'refreshToken' string here so the
             // frontend can save it in its storage!
             return Ok(new { token = jwt, refreshToken = refreshToken });
+        }
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenDto refreshToken)
+        {
+            // hashing the token
+            var tokenHash = _authService.HashToken(refreshToken.RefreshToken);
+
+            // checking hashed token in the DB
+            var existingToken = await _context.RefreshToken.FirstOrDefaultAsync(rt =>
+                rt.TokenHash == tokenHash
+            );
+
+            if (existingToken == null)
+            {
+                return Unauthorized();
+            }
+
+            if (existingToken.ExpiresAt < DateTime.UtcNow)
+            {
+                return Unauthorized();
+            }
+
+            if (existingToken.RevokedAt != null)
+            {
+                return Unauthorized();
+            }
+
+            var user = await _context.Users.FindAsync(existingToken.UserId);
+
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+            
+            // revoking current refresh token 
+            existingToken.RevokedAt = DateTime.UtcNow;
+
+            // generated new token
+            var newRefreshToken = _authService.GenerateRefreshToken();
+            
+            // saved new token
+            var newRefreshTokenEntity = new RefreshToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                TokenHash = _authService.HashToken(newRefreshToken),
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddDays(7)
+            };
+            
+            // saving the new refresh token in db
+            _context.RefreshToken.Add(newRefreshTokenEntity);
+            await _context.SaveChangesAsync();
+            
+            // new access token generated
+            var accessToken = _authService.GenerateAccessToken(user);
+
+            return Ok(
+                new
+                {
+                    accessToken = accessToken,
+                    refreshToken = newRefreshToken,
+                });
         }
     }
 }
